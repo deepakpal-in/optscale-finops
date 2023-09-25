@@ -3,14 +3,14 @@
 # ./build.sh [component] [tag] [-r registry] [-u username] [-p password]
 # leave registry empty if default registry [docker.io] used
 
-set -e
-
 # Initialize default values
+COMPANY="hystax"
 REGISTRY=""
 LOGIN=""
 PASSWORD=""
 COMPONENT=""
 INPUT_TAG=""
+
 
 # Parse command line arguments
 while [[ "$#" -gt 0 ]]; do
@@ -31,21 +31,52 @@ while [[ "$#" -gt 0 ]]; do
     shift
 done
 
+COMMIT_ID=$(git rev-parse --verify HEAD)
 
-BUILD_TAG=${INPUT_TAG:-'build'}
+use_registry() {
+  if [[ -n "${LOGIN}" && -n "${PASSWORD}" ]]; then
+    true
+  else
+    false
+fi
+}
+
+BUILD_TAG=${INPUT_TAG:-'local'}
 FIND_CMD="find . -mindepth 2 -maxdepth 3 -print | grep Dockerfile | grep -vE '(test|.j2)'"
 FIND_CMD="${FIND_CMD} | grep $COMPONENT/"
 
-if [[ -n "${LOGIN}" && -n "${PASSWORD}" ]]; then
+
+if use_registry; then
   echo "docker login"
   docker login ${REGISTRY} -u "${LOGIN}" -p "${PASSWORD}"
 fi
 
+retag() {
+if use_registry; then
+     if [ -z $1]; then
+       if docker pull "${COMPANY}/$2:${COMMIT_ID}"; then
+         docker tag "${COMPANY}/$2:${COMMIT_ID}" "$2:$3"
+         return 0
+       else
+         return 1
+       fi
+    else
+      if docker pull "$1/$2:${COMMIT_ID}"; then
+        docker tag "$1/$2:${COMMIT_ID}" "$2:$3"
+        return 0
+      else
+        return 1
+      fi
+    fi
+fi
+return 1
+}
+
 push_image () {
    echo "Pushing $2"
     if [ -z $1]; then
-      docker tag "$2:$3" "hystax/$2:$3"
-      docker push "hystax/$2:$3"
+      docker tag "$2:$3" "$COMPANY/$2:$3"
+      docker push "$COMPANY/$2:$3"
     else
       docker tag "$2:$3" "$1/$2:$3"
       docker push "$1/$2:$3"
@@ -55,9 +86,15 @@ push_image () {
 for DOCKERFILE in $(eval ${FIND_CMD} | xargs)
 do
     COMPONENT=$(echo "${DOCKERFILE}" | awk -F '/' '{print $(NF-1)}')
-    echo "Building image for ${COMPONENT}, build tag: ${BUILD_TAG}"
-    docker build -t ${COMPONENT}:${BUILD_TAG} -f ${DOCKERFILE} .
-    if [[ -n "${LOGIN}" && -n "${PASSWORD}" ]]; then
+    retag $REGISTRY $COMPONENT $BUILD_TAG
+    if [ "$?" -eq 0 ]; then
+      echo "component $COMPONENT re-tagged $COMMIT_ID -> $BUILD_TAG"
+    else
+      echo "Building image for ${COMPONENT}, build tag: ${BUILD_TAG}"
+      docker build -t ${COMPONENT}:${BUILD_TAG} -f ${DOCKERFILE} .
+    fi
+
+    if use_registry; then
       push_image $REGISTRY $COMPONENT $BUILD_TAG
     fi
 done
