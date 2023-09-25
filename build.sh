@@ -53,7 +53,7 @@ fi
 
 retag() {
 if use_registry; then
-     if [ -z $1]; then
+     if [ -z $1 ]; then
        if docker pull "${COMPANY}/$2:${COMMIT_ID}"; then
          docker tag "${COMPANY}/$2:${COMMIT_ID}" "$2:$3"
          return 0
@@ -74,7 +74,7 @@ return 1
 
 push_image () {
    echo "Pushing $2"
-    if [ -z $1]; then
+    if [ -z $1 ]; then
       docker tag "$2:$3" "$COMPANY/$2:$3"
       docker tag "$2:$3" "$COMPANY/$2:$COMMIT_ID"
       docker push "$COMPANY/$2:$3"
