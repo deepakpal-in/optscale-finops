@@ -76,10 +76,14 @@ push_image () {
    echo "Pushing $2"
     if [ -z $1]; then
       docker tag "$2:$3" "$COMPANY/$2:$3"
+      docker tag "$2:$3" "$COMPANY/$2:$COMMIT_ID"
       docker push "$COMPANY/$2:$3"
+      docker push "$COMPANY/$2:$COMMIT_ID"
     else
       docker tag "$2:$3" "$1/$2:$3"
+      docker tag "$2:$3" "$1/$2:$COMMIT_ID"
       docker push "$1/$2:$3"
+      docker push "$1/$2:$COMMIT_ID"
     fi
 }
 
