@@ -53,16 +53,16 @@ fi
 
 retag() {
 if use_registry; then
-     if [ -z $1 ]; then
-       if docker pull "${COMPANY}/$2:${COMMIT_ID}"; then
-         docker tag "${COMPANY}/$2:${COMMIT_ID}" "$2:$3"
+     if [ -z $3 ]; then
+       if docker pull "${COMPANY}/$1:${COMMIT_ID}"; then
+         docker tag "${COMPANY}/$1:${COMMIT_ID}" "$1:$2"
          return 0
        else
          return 1
        fi
     else
-      if docker pull "$1/$2:${COMMIT_ID}"; then
-        docker tag "$1/$2:${COMMIT_ID}" "$2:$3"
+      if docker pull "$3/$1:${COMMIT_ID}"; then
+        docker tag "$3/$1:${COMMIT_ID}" "$1:$2"
         return 0
       else
         return 1
@@ -73,24 +73,24 @@ return 1
 }
 
 push_image () {
-   echo "Pushing $2"
-    if [ -z $1 ]; then
-      docker tag "$2:$3" "$COMPANY/$2:$3"
-      docker tag "$2:$3" "$COMPANY/$2:$COMMIT_ID"
-      docker push "$COMPANY/$2:$3"
-      docker push "$COMPANY/$2:$COMMIT_ID"
+   echo "Pushing $1:$2"
+    if [ -z $3 ]; then
+      docker tag "$1:$2" "$COMPANY/$1:$2"
+      docker tag "$1:$2" "$COMPANY/$1:$COMMIT_ID"
+      docker push "$COMPANY/$1:$2"
+      docker push "$COMPANY/$1:$COMMIT_ID"
     else
-      docker tag "$2:$3" "$1/$2:$3"
-      docker tag "$2:$3" "$1/$2:$COMMIT_ID"
-      docker push "$1/$2:$3"
-      docker push "$1/$2:$COMMIT_ID"
+      docker tag "$1:$2" "$3/$1:$2"
+      docker tag "$1:$2" "$3/$1:$COMMIT_ID"
+      docker push "$3/$1:$2"
+      docker push "$3/$1:$COMMIT_ID"
     fi
 }
 
 for DOCKERFILE in $(eval ${FIND_CMD} | xargs)
 do
     COMPONENT=$(echo "${DOCKERFILE}" | awk -F '/' '{print $(NF-1)}')
-    retag $REGISTRY $COMPONENT $BUILD_TAG
+    retag  $COMPONENT $BUILD_TAG $REGISTRY
     if [ "$?" -eq 0 ]; then
       echo "component $COMPONENT re-tagged $COMMIT_ID -> $BUILD_TAG"
     else
@@ -99,6 +99,6 @@ do
     fi
 
     if use_registry; then
-      push_image $REGISTRY $COMPONENT $BUILD_TAG
+      push_image $COMPONENT $BUILD_TAG $REGISTRY
     fi
 done
